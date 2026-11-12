@@ -1,117 +1,19 @@
-# Lambda — Google Isochrones API
+# google_isochrones_backend
 
-## Overview
+![Google Isochrones API](https://storage.ghost.io/c/c6/4d/c64da7e8-63a6-4cff-acdc-2782a6ebc377/content/images/size/w1600/2026/11/isochrones-mockup.png " Google Isochrones API")
 
-Backend for the project. Main job: receive requests from frontend, call Google Isochrones API, return results.
+Taken from: 
+- [Mapping travel time with the Google Maps Isochrones API](https://blog.afi.io/blog/mapping-travel-time-with-the-google-maps-isochrones-api)
+- [How isochrones work: From shortest paths to polygons](https://afi.io/blog/how-isochrones-work-from-shortest-paths-to-polygons)
+- [Build an isochrone map with the Google Isochrone API](https://blog.afi.io/blog/build-an-isochrone-map-with-the-google-isochrone-api/)
+  
+This is the backend API for [google_isochrones_frontend](https://github.com/afilabs/google_isochrones_frontend) which runs on port 5173.
 
-**2 code files:**
-- `handler.js` — runs on AWS Lambda (Amazon's cloud server)
-- `local.js` — runs on your machine for testing
+How to run the app:
 
----
+1. cd into your project folder
+2. Open terminal and run `npm install` (this will install the required dependencies)
+3. Update the `.env` file with a Google Maps API key that has the Google Isochrones API enabled
+4. Run `npm run dev`
 
-## handler.js — Main logic
-
-This file handles every incoming request. It does 4 things:
-
-### 1. Validate input
-
-The `validate(body)` function checks user input:
-- `latitude`: must be a number, -90 to 90
-- `longitude`: must be a number, -180 to 180
-- `travelMode`: must be one of — `DRIVE` (car), `WALK` (walking), `BICYCLE` (biking)
-- `travelDuration`: must be an integer, 60 to 14400 seconds
-
-If anything is wrong → return error immediately, don't call Google.
-
-### 2. Call Google Isochrones API
-
-The `computeIsochrone(dto)` function sends a request to Google:
-- Gets the API key from environment variable (never hardcoded)
-- Sends location, travel time, and travel mode
-- Google returns a polygon — the area you can reach within that time
-- If Google fails → return error to user
-
-### 3. Format responses
-
-The `json(status, body)` function builds a standard HTTP response:
-- Always includes CORS headers (so frontend can call from a different domain)
-- JSON format
-- Every response has an HTTP `statusCode`
-
-### 4. Route requests
-
-The `handler(event)` function is the **front door** — every request goes through it:
-
-| Request | Returns |
-|---------|---------|
-| `OPTIONS /...` | 204 — CORS preflight |
-| `GET /health` | 200 — "server is alive" |
-| `POST /isochrones` | 200 + polygon result |
-| Anything else | 404 — "not found" |
-
-Error codes:
-- **400** — bad input (validation failed)
-- **204** — no reachable area found (time too short, location too remote, etc.)
-- **502** — Google API returned an error
-- **500** — server error (missing API key, unexpected crash, etc.)
-
----
-
-## local.js — Local dev server
-
-This file is **dev only** (never deployed to AWS).
-
-It creates a tiny HTTP server on port **3001**:
-
-```
-Your machine → HTTP request → local.js → handler.js → Google API → response back
-```
-
-### How it works
-
-1. Listens for HTTP requests from the frontend
-2. Converts the HTTP request into Lambda event format
-3. Calls `handler(event)` — exactly like AWS does
-4. Sends the result back to the frontend
-
-This lets you test the backend on your laptop without deploying to AWS.
-
-The frontend calls `http://localhost:3001/api/isochrones`, and local.js strips the `/api` prefix before processing.
-
----
-
-## Commands
-
-```bash
-# Start local dev server
-npm run dev
-
-# Package for AWS deployment
-npm run bundle   # → creates lambda.zip
-```
-
-After `npm run dev`, the server is ready at http://localhost:3001.
-
-## Deploy to AWS
-
-```bash
-npm run bundle  # → lambda.zip (~2KB)
-
-# Create Lambda function
-aws lambda create-function \
-  --function-name google-isochrones \
-  --runtime nodejs22.x \
-  --architectures arm64 \
-  --handler handler.handler \
-  --memory-size 128 \
-  --timeout 10 \
-  --environment "Variables={GOOGLE_MAPS_API_KEY=...}" \
-  --role arn:aws:iam::ACCOUNT:role/lambda-basic \
-  --zip-file fileb://lambda.zip
-
-# Enable Function URL (allow public access)
-aws lambda create-function-url-config \
-  --function-name google-isochrones \
-  --auth-type NONE
-```
+Please contact afian@afi.io if you have any questions or suggestions. Pull requests are welcome.
